@@ -2,7 +2,7 @@
 
 ---
 
--   📚 Learning full stack 🕸 devlopment
+-   📚 Learning Python 🐍 now
 -   🌱 I learn anything that interests me
 -   🤔 I’m looking for help with networking
 -   📫 Reach me on: [Twitter](https://twitter.com/Durgesh_B_G)
