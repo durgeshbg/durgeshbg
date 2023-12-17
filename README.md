@@ -7,7 +7,6 @@
 ---
 
 -   Always learning.
--   Machine Learning (Currently).
 -   [Linktree](https://linktr.ee/durgeshbg).
 -   Pronouns: He/Him.
 -   Power factor: adaptable, quick-learner.
