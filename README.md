@@ -7,6 +7,6 @@
 ---
 
 -   Always learning.
--   [Linktree](https://linktr.ee/durgeshbg).
+-   [Portifolio](https://durgeshbg.github.io/homepage)
 -   Pronouns: He/Him.
 -   Power factor: adaptable, quick-learner.
