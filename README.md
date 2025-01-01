@@ -2,7 +2,7 @@
 
 ---
 
-[![GitHub Streak](https://streak-stats.demolab.com/?user=durgeshbg)](https://git.io/streak-stats)
+[![GitHub Streak](https://nirzak-streak-stats.vercel.app/?user=durgeshbg)]
 
 ---
 
