@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="495" height="195" viewBox="0 0 495 195" role="img">
+  <title>Durgesh's GitHub Stats</title>
+  <rect width="495" height="195" rx="4.5" fill="#0d1117"/>
+  <g font-family="Segoe UI, Ubuntu, sans-serif" fill="#58a6ff">
+    <text x="25" y="35" font-size="18" font-weight="700">Durgesh's GitHub Stats</text>
+  </g>
+  <g font-family="Segoe UI, Ubuntu, sans-serif" fill="#c9d1d9" font-size="14">
+    <text x="25" y="75">Total Stars:</text><text x="200" y="75" fill="#8b949e">seed — run workflow</text>
+    <text x="25" y="100">Total Commits:</text><text x="200" y="100" fill="#8b949e">seed — run workflow</text>
+    <text x="25" y="125">Total PRs:</text><text x="200" y="125" fill="#8b949e">seed — run workflow</text>
+    <text x="25" y="150">Contributed to:</text><text x="200" y="150" fill="#8b949e">seed — run workflow</text>
+  </g>
+  <text x="25" y="180" font-family="Segoe UI, Ubuntu, sans-serif" font-size="11" fill="#8b949e">Placeholder · Actions will refresh this card</text>
+</svg>
