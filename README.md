@@ -6,11 +6,9 @@
   repository secret PROFILE_README_TOKEN, then run the workflow once.
 -->
 
-<div align="center">
 [Resume](https://drive.google.com/file/d/1v_5cNRZkcjzyMF1HlNdHI6A0jLxrcI-B/view?usp=sharing)
 ·
 [X / Twitter](https://x.com/durgeshbg)
-</div>
 
 ---
 
