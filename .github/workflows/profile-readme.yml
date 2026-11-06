@@ -12,7 +12,8 @@ name: Update profile README
 
 on:
   schedule:
-    - cron: "0 0 * * *"
+    # Refresh weekly on Mondays at 03:17 UTC (avoid the top-of-hour rush).
+    - cron: "17 3 * * 1"
   workflow_dispatch:
   push:
     branches: [main]
