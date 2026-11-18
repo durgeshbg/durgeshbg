@@ -6,6 +6,7 @@ import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 from unittest.mock import patch
 
 import weekly_report as report
@@ -122,56 +123,88 @@ class ProfileReportTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 report.next_cursor({"pageInfo": page_info}, set())
 
-    def test_render_is_ascii_aligned_and_has_lifetime_totals_and_timestamp(self):
+    def test_render_has_readable_lifetime_totals_and_timestamp(self):
         rendered = report.render_report(profile(), NOW)
-        panel = rendered.split("```text\n")[1].split("\n```")[0]
-        self.assertTrue(panel.isascii())
-        self.assertEqual(len({len(line) for line in panel.splitlines()}), 1)
-        for text in ("1,450", "547", "506", "92.5%", "CLOSED, UNMERGED  20",
-                     "2024-03-01 12:30:00 UTC", "75.0%", "25.0%", "PRIVATE ACTIVITY"):
+        for value in (1462, 547, 506):
+            self.assertIn(f"<h3>{value:,}</h3>", rendered)
+        self.assertEqual(rendered.count('<td align="center" valign="top" width="280">'), 3)
+        self.assertIn("Combines 1,450 commit contributions and 12 restricted contributions", rendered)
+        self.assertIn("which can include non-commit activity", rendered)
+        for text in ("2024-03-01 12:30:00 UTC", "75.0%", "25.0%", "TOTAL&nbsp;COMMITS"):
             self.assertIn(text, rendered)
-        totals = next(line for line in panel.splitlines() if "1,450" in line)
-        self.assertEqual(totals.strip("| ").split(), ["1,450", "547", "506", "12"])
-        self.assertNotIn("1,462", rendered)
-        self.assertNotIn("Partial:", rendered)
-        self.assertNotIn("Incomplete commit coverage", rendered)
-        self.assertIn("not a total of all private work or private commits", rendered)
-        self.assertNotIn("<img", rendered)
+        self.assertNotIn("How these numbers are counted", rendered)
+        self.assertNotIn("```", rendered)
 
-    def test_bars_show_small_nonzero_values_without_overflow(self):
-        self.assertEqual(report.bar(0, 0), "." * 22)
-        self.assertEqual(report.bar(1, 1000), "+" + "." * 21)
-        self.assertEqual(report.bar(1000, 1000), "#" * 22)
-        self.assertEqual(len(report.bar(574, 1000)), 22)
+    def test_matches_trimmed_preview_without_removed_sections(self):
+        rendered = report.render_report(profile(), NOW)
+        for removed in ("<details>", "Commit history", "closed without merging", "languages detected", "Code bytes"):
+            self.assertNotIn(removed, rendered)
+        self.assertTrue(rendered.endswith("_Updated 2024-03-01 12:30:00 UTC_\n"))
 
     def test_empty_profile_and_zero_denominators(self):
         empty = profile()
         empty.update(years=[(2024, 0)], prs=0, merged=0, open=0, restricted=0, repositories=0, languages={})
         rendered = report.render_report(empty, NOW)
-        self.assertIn("n/a", rendered)
         self.assertIn("No language data available.", rendered)
-        self.assertIn("PRIVATE ACTIVITY", rendered)
-        panel = rendered.split("```text\n")[1].split("\n```")[0]
-        self.assertTrue(any(line.strip("| ").split() == ["0", "0", "0", "0"] for line in panel.splitlines()))
-        self.assertNotIn("Incomplete commit coverage", rendered)
+        self.assertEqual(rendered.count("<h3>0</h3>"), 3)
 
-    def test_language_tail_is_grouped_without_changing_percentage_denominator(self):
+    def test_every_language_is_listed_without_grouping(self):
         data = profile()
-        data["languages"] = {f"Language {index}": 10 for index in range(10)}
+        data["languages"] = {f"Language {index}": 10 for index in range(20)}
         rendered = report.render_report(data, NOW)
-        self.assertEqual(rendered.count("10.0%"), 8)
-        self.assertIn("20.0%", rendered)
-        self.assertIn("Other", rendered)
-        self.assertIn("10 languages detected", rendered)
+        for name in data["languages"]:
+            self.assertIn(f"![{name} 5.0%]", rendered)
+        self.assertEqual(rendered.count("https://img.shields.io/"), 20)
+        rows = [line for line in rendered.splitlines() if "https://img.shields.io/" in line]
+        self.assertEqual(len(rows), 4)
+        self.assertTrue(all(row.count("https://img.shields.io/") == 5 for row in rows))
+        self.assertNotIn("| Language | Share |", rendered)
+        self.assertNotIn("Other languages", rendered)
 
-    def test_large_counts_and_untrusted_language_labels_preserve_panel(self):
+    def test_language_table_pads_incomplete_rows(self):
         data = profile()
-        data.update(prs=12345678, languages={"bad\n```|é" * 5: 1})
+        data["languages"] = {f"Language {index}": 1 for index in range(6)}
+        rows = [line for line in report.render_report(data, NOW).splitlines()
+                if "https://img.shields.io/" in line]
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[-1].count("https://img.shields.io/"), 1)
+        self.assertEqual(rows[-1].count("|"), 6)
+
+    def test_small_language_shares_are_not_displayed_as_zero(self):
+        data = profile()
+        data["languages"] = {"Python": 9999, "Shell": 1}
         rendered = report.render_report(data, NOW)
-        self.assertEqual(rendered.count("```"), 2)
-        panel = rendered.split("```text\n")[1].split("\n```")[0]
-        self.assertTrue(panel.isascii())
-        self.assertEqual(len({len(line) for line in panel.splitlines()}), 1)
+        self.assertIn("![Shell <0.1%]", rendered)
+        self.assertIn("message=%3C0.1%25", rendered)
+        self.assertLess(rendered.index("![Python"), rendered.index("![Shell"))
+
+    def test_badge_urls_encode_names_percentages_and_logo_aliases(self):
+        for name, logo in (("C++", "cplusplus"), ("HTML", "html5"), ("SCSS", "sass")):
+            with self.subTest(name=name):
+                badge = report.language_badge(name, "2.1%")
+                url = urlsplit(badge.split("](", 1)[1][:-1])
+                self.assertEqual(url.netloc, "img.shields.io")
+                params = parse_qs(url.query)
+                self.assertEqual(params["label"], [name])
+                self.assertEqual(params["message"], ["2.1%"])
+                self.assertEqual(params["logo"], [logo])
+                self.assertEqual(params["style"], ["flat-square"])
+
+    def test_unknown_languages_keep_text_without_an_unrelated_logo(self):
+        for name in ("Blade", "Shell", "Makefile", "New Language"):
+            badge = report.language_badge(name, "1.0%")
+            self.assertIn(f"![{name} 1.0%]", badge)
+            self.assertNotIn("logo=", badge)
+
+    def test_large_counts_and_untrusted_language_labels_preserve_markdown(self):
+        data = profile()
+        data.update(prs=12345678, languages={"bad\n```|<img>*](https://bad.example)": 1})
+        rendered = report.render_report(data, NOW)
+        self.assertIn("<h3>12,345,678</h3>", rendered)
+        self.assertNotIn("```", rendered)
+        self.assertNotIn("<img", rendered)
+        self.assertNotIn("](https://bad.example)", rendered)
+        self.assertEqual(rendered.count("](https://img.shields.io/"), 1)
 
     @patch("weekly_report.publish_report")
     def test_failures_return_nonzero(self, publish):
@@ -239,7 +272,7 @@ class PublishingTests(unittest.TestCase):
         updated = self.path.read_text()
         self.assertTrue(updated.startswith("Keep this intro.\n" + report.START_MARKER))
         self.assertTrue(updated.endswith(report.END_MARKER + "\nKeep this footer.\n"))
-        self.assertIn("1,450", updated)
+        self.assertIn("<h3>1,462</h3>", updated)
         head = self.git("rev-parse", "HEAD")
         self.assertNotEqual(head, self.initial)
         self.assertEqual(self.git("--git-dir", str(self.remote), "rev-parse", "main"), head)
@@ -301,7 +334,7 @@ class PublishingTests(unittest.TestCase):
         self.assertEqual(self.git("rev-parse", "HEAD"), self.initial)
         self.assertEqual(self.git("--git-dir", str(self.remote), "rev-parse", "main"), self.initial)
         self.assertEqual(self.git("diff", "--cached", "--name-only"), "README.md")
-        self.assertIn("UPDATED AT", self.path.read_text())
+        self.assertIn("_Updated ", self.path.read_text())
 
     def test_remote_divergence_is_not_force_pushed(self):
         remote_head = self.git("commit-tree", "HEAD^{tree}", "-p", "HEAD", "-m", "Remote change")

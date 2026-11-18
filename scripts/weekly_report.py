@@ -7,11 +7,31 @@ import sys
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import urlencode
 
 ROOT = Path(__file__).resolve().parents[1]
 START_MARKER = "<!-- weekly-report:start -->"
 END_MARKER = "<!-- weekly-report:end -->"
 USERNAME = "durgeshbg"
+LANGUAGE_LOGOS = {
+    "TypeScript": ("typescript", "3178C6"),
+    "JavaScript": ("javascript", "F7DF1E"),
+    "Python": ("python", "3776AB"),
+    "HTML": ("html5", "E34F26"),
+    "CSS": ("css", "663399"),
+    "Solidity": ("solidity", "363636"),
+    "PHP": ("php", "777BB4"),
+    "C": ("c", "A8B9CC"),
+    "Rust": ("rust", "A65D38"),
+    "Pug": ("pug", "A86454"),
+    "Lua": ("lua", "2C2D72"),
+    "C++": ("cplusplus", "00599C"),
+    "SCSS": ("sass", "CC6699"),
+    "Ruby": ("ruby", "CC342D"),
+    "EJS": ("ejs", "B4CA65"),
+    "Vim Script": ("vim", "019733"),
+    "Dockerfile": ("docker", "2496ED"),
+}
 PROFILE_QUERY = """
 query($login: String!) {
   user(login: $login) {
@@ -50,18 +70,6 @@ query($id: ID!, $cursor: String!) {
   }
 }
 """.replace("LANGUAGE_FIELDS", LANGUAGE_FIELDS)
-DIGITS = {
-    "0": ("###", "# #", "# #", "# #", "###"),
-    "1": (" # ", "## ", " # ", " # ", "###"),
-    "2": ("###", "  #", "###", "#  ", "###"),
-    "3": ("###", "  #", "###", "  #", "###"),
-    "4": ("# #", "# #", "###", "  #", "  #"),
-    "5": ("###", "#  ", "###", "  #", "###"),
-    "6": ("###", "#  ", "###", "# #", "###"),
-    "7": ("###", "  #", "  #", "  #", "  #"),
-    "8": ("###", "# #", "###", "# #", "###"),
-    "9": ("###", "# #", "###", "  #", "###"),
-}
 
 
 def graphql(query, **variables):
@@ -155,70 +163,65 @@ def fetch_profile(now):
     }
 
 
-def bar(value, maximum, width=22):
-    scaled = width * value / maximum if maximum else 0
-    filled = int(scaled)
-    partial = "+" if scaled > filled else ""
-    return "#" * filled + partial + "." * (width - filled - len(partial))
+def language_badge(name, share):
+    # Keep API labels from injecting Markdown; urlencode handles badge parameters.
+    label = "".join(char if char.isalnum() or char in " +#.-()" else "?" for char in name)
+    logo, color = LANGUAGE_LOGOS.get(name, (None, "555555"))
+    params = {
+        "label": label, "message": share, "color": color,
+        "style": "flat-square", "labelColor": "1f2328",
+    }
+    if logo:
+        params.update(logo=logo, logoColor="white")
+    url = "https://img.shields.io/static/v1?" + urlencode(params)
+    return f"![{label} {share}]({url})"
 
 
 def render_report(profile, now):
     commits = sum(value for _, value in profile["years"])
-    values = (commits, profile["prs"], profile["merged"], profile["restricted"])
-    cell = max(16, max(len(str(value)) * 4 - 1 for value in values))
     lines = [
-        "D U R G E S H   /   CODE & CONTRIBUTIONS",
-        f"github://{USERNAME}     since {profile['created']:%Y-%m-%d}",
+        "### On GitHub",
         "",
-        "   ".join(label.center(cell) for label in ("COMMITS", "PRS OPENED", "PRS MERGED", "PRIVATE ACTIVITY")),
+        f"Since {profile['created']:%B %Y}",
+        "",
+        "<table>",
+        "  <tr>",
+        '    <td align="center" valign="top" width="280">',
+        f"      <h3>{commits + profile['restricted']:,}</h3>",
+        f'      <sub title="Combines {commits:,} commit contributions and '
+        f'{profile["restricted"]:,} restricted contributions, which can include non-commit activity.">'
+        "TOTAL&nbsp;COMMITS</sub>",
+        "    </td>",
+        '    <td align="center" valign="top" width="280">',
+        f"      <h3>{profile['prs']:,}</h3>",
+        "      <sub>PRS&nbsp;OPENED</sub>",
+        "    </td>",
+        '    <td align="center" valign="top" width="280">',
+        f"      <h3>{profile['merged']:,}</h3>",
+        "      <sub>PRS&nbsp;MERGED</sub>",
+        "    </td>",
+        "  </tr>",
+        "</table>",
+        "",
+        "### Languages",
+        "",
     ]
-    for row in range(5):
-        lines.append("   ".join(
-            " ".join(DIGITS[digit][row] for digit in str(value)).center(cell)
-            for value in values
-        ))
-    lines.extend([
-        "   ".join(f"{value:,}".center(cell) for value in values),
-        "",
-        "MERGED / OPENED   " + (f"{profile['merged'] / profile['prs']:.1%}" if profile["prs"] else "n/a"),
-        f"OPEN  {profile['open']:,}     CLOSED, UNMERGED  {profile['prs'] - profile['merged'] - profile['open']:,}",
-    ])
-    lines.extend(["", "01 / COMMIT HISTORY", ""])
-    peak = max((value for _, value in profile["years"]), default=0)
-    for year, value in profile["years"]:
-        lines.append(f"{year}  [{bar(value, peak)}]  {value:>7,}")
-    lines.extend(["", "02 / LANGUAGE MIX", "Public, owned, non-fork repositories / code bytes", ""])
     languages = sorted(profile["languages"].items(), key=lambda item: (-item[1], item[0]))
     total = sum(size for _, size in languages)
-    shown = languages[:8]
-    if len(languages) > 8:
-        shown.append(("Other", sum(size for _, size in languages[8:])))
-    if not total:
+    if total:
+        badges = []
+        for name, size in languages:
+            share = "<0.1%" if size / total < 0.001 else f"{size / total:.1%}"
+            badges.append(language_badge(name, share))
+        for start in range(0, len(badges), 5):
+            row = badges[start:start + 5]
+            lines.append("| " + " | ".join(row + [""] * (5 - len(row))) + " |")
+            if start == 0:
+                lines.append("| " + " | ".join([":---"] * 5) + " |")
+    else:
         lines.append("No language data available.")
-    for name, size in shown:
-        # Keep API labels on one ASCII line, without Markdown fence characters.
-        label = "".join(char if char.isascii() and (char.isalnum() or char in " +#.-()") else "?" for char in name)
-        if len(label) > 22:
-            label = label[:19] + "..."
-        lines.append(f"{label:<22} [{bar(size, total)}] {size / total:6.1%}")
-    lines.extend([
-        "", f"{profile['repositories']:,} repositories scanned / {len(languages):,} languages detected",
-        "", f"UPDATED AT  {now:%Y-%m-%d %H:%M:%S} UTC",
-    ])
-    width = max(72, max(map(len, lines)))
-    border = "+" + "-" * (width + 2) + "+"
-    panel = "\n".join([border, *(f"| {line:<{width}} |" for line in lines), border])
-    notes = (
-        "Commits follow GitHub's contribution rules, summed since account creation; "
-        "not every Git commit is counted. Totals include accessible private activity "
-        "and exclude deleted or inaccessible data. Language shares describe current "
-        "repository code, not lifetime authorship or proficiency."
-    )
-    notes += (" Private activity is GitHub's restricted-contribution count, not a total "
-              "of all private work or private commits. It is shown separately; no private "
-              "repository names or contribution details are published.")
-    return (f"```text\n{panel}\n```\n\n<details>\n<summary>Scope & counting rules</summary>\n\n"
-            f"{notes}\n\n</details>\n")
+    lines.extend(["", f"_Updated {now:%Y-%m-%d %H:%M:%S} UTC_", ""])
+    return "\n".join(lines)
 
 
 def git(*args):
