@@ -16,7 +16,17 @@
 
 ### weekly activity
 
-Run `python3 scripts/weekly_report.py` to publish the latest weekly report.
+**2026-11-11 – 2026-11-17 (UTC)** · [@durgeshbg](https://github.com/durgeshbg)
+
+| Metric | Count |
+| --- | ---: |
+| Commits | 1 |
+| Pull requests opened | 2 |
+| Issues opened | 0 |
+| Pull request reviews | 0 |
+| Repositories committed to | 1 |
+
+_Counts follow GitHub contribution rules and the authenticated account's visibility; they are not a count of every commit made._
 
 <!-- weekly-report:end -->
 
