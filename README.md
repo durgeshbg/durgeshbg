@@ -12,6 +12,8 @@ Building useful things. Contributing to open source. Always curious.
 
 [Resume](https://drive.google.com/file/d/1v_5cNRZkcjzyMF1HlNdHI6A0jLxrcI-B/view?usp=sharing)
 ·
+[Email](mailto:gdb0067@gmail.com)
+·
 [X / Twitter](https://x.com/durgeshbg)
 
 ---
