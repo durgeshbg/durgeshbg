@@ -1,9 +1,9 @@
 <!--
-  Self-hosted profile cards live in ./assets and refresh via
-  .github/workflows/profile-readme.yml (daily cron + workflow_dispatch).
+  Update the weekly report, commit, and push to origin/main:
+    python3 scripts/weekly_report.py
+  Setup and details: scripts/README.md
 
-  One-time setup: create a classic PAT (repo + read:user), add it as the
-  repository secret PROFILE_README_TOKEN, then run the workflow once.
+  Cards in ./assets are historical snapshots; GitHub Actions is no longer used.
 -->
 
 [Resume](https://drive.google.com/file/d/1v_5cNRZkcjzyMF1HlNdHI6A0jLxrcI-B/view?usp=sharing)
@@ -12,12 +12,13 @@
 
 ---
 
-### activity
+<!-- weekly-report:start -->
 
-<div align="center">
-  <img src="./assets/stats.svg" alt="GitHub stats" height="165" />
-  <img src="./assets/streak.svg" alt="Contribution streak" height="165" />
-</div>
+### weekly activity
+
+Run `python3 scripts/weekly_report.py` to publish the latest weekly report.
+
+<!-- weekly-report:end -->
 
 ### stack
 
